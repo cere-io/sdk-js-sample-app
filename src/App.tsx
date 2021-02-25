@@ -159,10 +159,10 @@ function App() {
   }, DEBOUNCE_TIMEOUT);
 
   useEffect(() => {
-    if (containerForInAppMessages.current && formState.appId) {
+    if (formState.appId) {
       debouncedInitSDK.callback(formState.appId);
     }
-  }, [containerForInAppMessages, formState.appId, debouncedInitSDK]);
+  }, [formState.appId, debouncedInitSDK]);
 
   useEffect(() => {
     cereSDK.onEngagement((template: string) => {
