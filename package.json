@@ -1,20 +1,15 @@
 {
-  "name": "sdk-demo",
+  "name": "sdk-v2-sample-app",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@testing-library/jest-dom": "^5.11.4",
-    "@testing-library/react": "^11.1.0",
-    "@testing-library/user-event": "^12.1.10",
-    "@types/jest": "^26.0.15",
-    "@types/node": "^12.0.0",
-    "@types/react": "^17.0.0",
-    "@types/react-dom": "^17.0.0",
+    "@material-ui/core": "^4.11.3",
+    "ramda": "^0.27.1",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
+    "react-frame-component": "^4.1.3",
     "react-scripts": "4.0.3",
-    "typescript": "^4.1.2",
-    "web-vitals": "^1.0.1"
+    "use-debounce": "^5.2.1"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -39,5 +34,17 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.11.4",
+    "@testing-library/react": "^11.1.0",
+    "@testing-library/user-event": "^12.1.10",
+    "@types/jest": "^26.0.15",
+    "@types/node": "^12.0.0",
+    "@types/ramda": "^0.27.38",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "@types/react-frame-component": "^4.1.1",
+    "typescript": "^4.1.2"
   }
 }
