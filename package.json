@@ -1,5 +1,5 @@
 {
-  "name": "sdk-v2-sample-app",
+  "name": "sdk-js-sample-app",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
