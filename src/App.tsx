@@ -1,24 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import Frame from "react-frame-component";
 import { pipe } from "ramda";
 
 import { makeStyles } from "@material-ui/core/styles";
 import {
+  AppBar,
   Box,
   Button,
   CssBaseline,
   Container,
   Grid,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@material-ui/core";
 
-declare global {
-  interface Window {
-    cereSDK: any;
-  }
-}
+import { cereWebSDK } from "@cere/sdk-js";
 
 type Payload = {
   [index: string]: string | number | undefined | Payload;
@@ -38,6 +37,11 @@ type FormState = {
 };
 
 const useStyles = makeStyles((theme) => ({
+  engagementPlaceholder: {
+    border: 0,
+    width: "100%",
+    minHeight: "50vh",
+  },
   engagementPreview: {
     background: "white",
   },
@@ -74,6 +78,10 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: theme.typography.fontWeightLight,
     whiteSpace: "pre-wrap",
   },
+  logsWrapper: {
+    overflowX: "auto",
+    wordBreak: "break-all",
+  },
   paper: {
     alignItems: "center",
     display: "flex",
@@ -89,30 +97,29 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const cereSDK = window.cereSDK;
 const DEBOUNCE_TIMEOUT = 500;
-let appLogs: Array<LogMessage> = [];
 
 const stringify = (json: Payload) => JSON.stringify(json, null, 2);
-const parse = (value: string) =>
-  JSON.parse(value.replace(/\s+(\w+):\s+/g, '"$1":').replace(/,\s+}/, "}"));
+// const parse = (value: string) =>
+//   JSON.parse(value.replace(/\s+(\w+):\s+/g, '"$1":').replace(/,\s+}/, "}"));
 
-const getUserCredentials = (userId?: string) => {
-  const credentials = userId && localStorage.getItem(userId);
-  return credentials ? parse(credentials) : {};
-};
+const parse = (value: string) => JSON.parse(value);
 
-const setAppLogs = (newLogs: Array<LogMessage>) => (appLogs = newLogs);
+function TabPanel(props) {
+  const { children, value, index } = props;
 
-const logEvent = (message: string, payload?: Payload) => {
-  setAppLogs([
-    { time: (performance.now() / 1000).toFixed(3), message, payload },
-    ...appLogs,
-  ]);
-};
+  return <div hidden={value !== index}>{<Box p={3}>{children}</Box>}</div>;
+}
 
 function App() {
   const classes = useStyles();
+
+  const [value, setValue] = useState(0);
+  const [logs, setLogs] = useState<Array<LogMessage>>([]);
+
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
 
   const [formState, setFormState] = useState({
     appId: process.env.REACT_APP_ID || "",
@@ -125,19 +132,38 @@ function App() {
 
   const containerForInAppMessages = useRef<HTMLDivElement>(null);
 
-  const debouncedInitSDK = useDebouncedCallback(async (appId: string) => {
-    logEvent("Init SDK", { appId });
-    await cereSDK.init(
-      appId,
-      process.env.REACT_APP_USER_ID,
-      containerForInAppMessages.current,
-      process.env.REACT_APP_API_KEY
-    );
-    logEvent(
-      "User credentials",
-      getUserCredentials(process.env.REACT_APP_USER_ID)
-    );
-  }, DEBOUNCE_TIMEOUT);
+  const logEvent = (message: string, payload?: Payload) => {
+    setLogs((logs) => [
+      {
+        time: (performance.now() / 1000).toFixed(3),
+        message,
+        payload,
+      },
+      ...logs,
+    ]);
+  };
+
+  const sdk = useMemo(() => {
+    if (formState.appId) {
+      logEvent("Init SDK", { appId: formState.appId });
+
+      return cereWebSDK(formState.appId, process.env.REACT_APP_USER_ID, {
+        container: containerForInAppMessages.current,
+        token: process.env.REACT_APP_API_KEY,
+      });
+    }
+  }, [formState.appId, containerForInAppMessages.current]);
+
+  useEffect(() => {
+    if (sdk) {
+      sdk.onEngagement((template: string) => {
+        logEvent("Engagement", { template });
+        setEngagementHtml(template);
+      });
+
+      logEvent("Registered custom engagement listener");
+    }
+  }, [sdk]);
 
   const debouncedValidateForm = useDebouncedCallback((formState: FormState) => {
     let eventPayload = formState.eventPayload;
@@ -159,30 +185,20 @@ function App() {
   }, DEBOUNCE_TIMEOUT);
 
   useEffect(() => {
-    if (formState.appId) {
-      debouncedInitSDK.callback(formState.appId);
-    }
-  }, [formState.appId, debouncedInitSDK]);
+    debouncedValidateForm(formState);
+  }, [
+    formState.appId,
+    formState.eventName,
+    formState.eventPayload,
+    debouncedValidateForm,
+  ]);
 
-  useEffect(() => {
-    cereSDK.onEngagement((template: string) => {
-      logEvent("Engagement", { template });
-      setEngagementHtml(template);
-    });
-  }, []);
-
-  useEffect(() => {
-    debouncedValidateForm.callback(formState);
-  }, [formState, debouncedValidateForm]);
-
-  const setAppId = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const appId = e.currentTarget.value;
-
+  const setAppIdDebounced = useDebouncedCallback((appId: string) => {
     setFormState({
       ...formState,
       appId,
     });
-  };
+  }, DEBOUNCE_TIMEOUT * 2);
 
   const setEventName = (e: React.ChangeEvent<HTMLInputElement>) => {
     const eventName = e.currentTarget.value;
@@ -196,21 +212,22 @@ function App() {
     setFormState({ ...formState, eventPayload: e.currentTarget.value });
   };
 
-  const sendEvent = async (e: React.MouseEvent) => {
+  const onSendEvent = async (e: React.MouseEvent) => {
     e.preventDefault();
     logEvent("Send event", {
       eventName: formState.eventName,
       eventPayload: formState.eventPayload && parse(formState.eventPayload),
     });
     setEngagementHtml("");
-    await cereSDK.sendEvent(formState.eventName, formState.eventPayload);
+
+    sdk.sendEvent(formState.eventName, parse(formState.eventPayload));
   };
 
   const renderLogs = () => {
-    return appLogs.map(({ time, message, payload }, index) => (
+    return logs.map(({ time, message, payload }, index) => (
       <Box
         className={classes.logItem}
-        borderBottom={Number(index < appLogs.length - 1)}
+        borderBottom={Number(index < logs.length - 1)}
         key={index}
       >
         <Box display="flex" width="100%">
@@ -245,8 +262,10 @@ function App() {
                     fullWidth
                     label="App ID"
                     autoFocus
-                    value={formState.appId}
-                    onChange={setAppId}
+                    defaultValue={formState.appId}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setAppIdDebounced(e.currentTarget.value)
+                    }
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -280,7 +299,7 @@ function App() {
                     variant="contained"
                     className={classes.submit}
                     color="primary"
-                    onClick={sendEvent}
+                    onClick={onSendEvent}
                     disabled={!formState.isValid}
                   >
                     Fire event
@@ -290,25 +309,66 @@ function App() {
             </Grid>
             <Grid container item xs={8}>
               <Grid item xs={12}>
-                <fieldset
-                  className={`${classes.fieldset} ${classes.engagementPreview}`}
-                >
-                  <legend className={classes.fieldsetLegend}>
-                    Engagement preview
-                  </legend>
-                  <Box className={classes.preview}>
-                    <Frame className={classes.frame}>
+                <AppBar position="static">
+                  <Tabs
+                    value={value}
+                    onChange={handleChange}
+                    aria-label="simple tabs example"
+                  >
+                    <Tab label="Default" />
+                    <Tab label="Custom (iFrame)" />
+                    <Tab label="Custom" />
+                  </Tabs>
+                </AppBar>
+                <TabPanel value={value} index={0}>
+                  <fieldset
+                    className={`${classes.fieldset} ${classes.engagementPreview}`}
+                  >
+                    <legend className={classes.fieldsetLegend}>
+                      Default placeholder
+                    </legend>
+                    <Box className={classes.preview}>
                       <div
+                        className={classes.engagementPlaceholder}
                         ref={containerForInAppMessages}
+                      ></div>
+                    </Box>
+                  </fieldset>
+                </TabPanel>
+                <TabPanel value={value} index={1}>
+                  <fieldset
+                    className={`${classes.fieldset} ${classes.engagementPreview}`}
+                  >
+                    <legend className={classes.fieldsetLegend}>
+                      Custom placeholder <strong>in iFrame</strong>
+                    </legend>
+                    <Box className={classes.preview}>
+                      <Frame className={classes.engagementPlaceholder}>
+                        <div
+                          dangerouslySetInnerHTML={{ __html: engagementHtml }}
+                        ></div>
+                      </Frame>
+                    </Box>
+                  </fieldset>
+                </TabPanel>
+                <TabPanel value={value} index={2}>
+                  <fieldset
+                    className={`${classes.fieldset} ${classes.engagementPreview}`}
+                  >
+                    <legend className={classes.fieldsetLegend}>
+                      Custom placeholder
+                    </legend>
+                    <Box className={classes.preview}>
+                      <div
                         dangerouslySetInnerHTML={{ __html: engagementHtml }}
                       ></div>
-                    </Frame>
-                  </Box>
-                </fieldset>
+                    </Box>
+                  </fieldset>
+                </TabPanel>
               </Grid>
             </Grid>
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} className={classes.logsWrapper}>
             <fieldset className={classes.fieldset}>
               <legend className={classes.fieldsetLegend}>Logs</legend>
               {renderLogs()}
