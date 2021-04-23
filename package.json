@@ -1,9 +1,9 @@
 {
   "name": "sdk-js-sample-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@cere/sdk-js": "^2.1.1",
+    "@cere/sdk-js": "2.2.1-dev",
     "@material-ui/core": "^4.11.3",
     "ramda": "^0.27.1",
     "react": "^17.0.1",
