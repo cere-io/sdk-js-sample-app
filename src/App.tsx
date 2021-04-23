@@ -31,6 +31,7 @@ type LogMessage = {
 
 type FormState = {
   appId: string;
+  userId: string;
   eventName: string;
   eventPayload: string;
   isValid: boolean;
@@ -123,6 +124,7 @@ function App() {
 
   const [formState, setFormState] = useState({
     appId: process.env.REACT_APP_ID || "",
+    userId: "",
     eventName: "",
     eventPayload: stringify({}),
     isValid: false,
@@ -144,15 +146,15 @@ function App() {
   };
 
   const sdk = useMemo(() => {
-    if (formState.appId) {
-      logEvent("Init SDK", { appId: formState.appId });
+    if (formState.appId && formState.userId) {
+      logEvent("Init SDK", { appId: formState.appId, userId: formState.userId });
 
-      return cereWebSDK(formState.appId, process.env.REACT_APP_USER_ID, {
+      return cereWebSDK(formState.appId, formState.userId, {
         container: containerForInAppMessages.current,
         token: process.env.REACT_APP_API_KEY,
       });
     }
-  }, [formState.appId, containerForInAppMessages.current]);
+  }, [formState.appId, formState.userId, containerForInAppMessages.current]);
 
   useEffect(() => {
     if (sdk) {
@@ -167,7 +169,7 @@ function App() {
 
   const debouncedValidateForm = useDebouncedCallback((formState: FormState) => {
     let eventPayload = formState.eventPayload;
-    let isValid = Boolean(formState.appId) && Boolean(formState.eventName);
+    let isValid = Boolean(formState.appId) && Boolean(formState.userId) && Boolean(formState.eventName);
 
     if (eventPayload) {
       try {
@@ -188,15 +190,24 @@ function App() {
     debouncedValidateForm(formState);
   }, [
     formState.appId,
+    formState.userId,
     formState.eventName,
     formState.eventPayload,
     debouncedValidateForm,
   ]);
 
-  const setAppIdDebounced = useDebouncedCallback((appId: string) => {
+  const setAppId = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const appId = e.currentTarget.value;
     setFormState({
       ...formState,
       appId,
+    });
+  };
+
+  const setUserId = useDebouncedCallback((userId: string) => {
+    setFormState({
+      ...formState,
+      userId,
     });
   }, DEBOUNCE_TIMEOUT * 2);
 
@@ -207,6 +218,8 @@ function App() {
       eventName,
     });
   };
+
+
 
   const setEventPayload = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormState({ ...formState, eventPayload: e.currentTarget.value });
@@ -263,8 +276,20 @@ function App() {
                     label="App ID"
                     autoFocus
                     defaultValue={formState.appId}
+                    onChange={setAppId}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    name="userId"
+                    variant="outlined"
+                    required
+                    fullWidth
+                    label="User Id"
+                    autoFocus
+                    defaultValue={formState.userId}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setAppIdDebounced(e.currentTarget.value)
+                      setUserId(e.currentTarget.value)
                     }
                   />
                 </Grid>
