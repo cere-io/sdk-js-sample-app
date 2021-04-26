@@ -124,7 +124,7 @@ function App() {
 
   const [formState, setFormState] = useState({
     appId: process.env.REACT_APP_ID || "",
-    userId: "",
+    userId: process.env.REACT_APP_USER_ID || "",
     eventName: "",
     eventPayload: stringify({}),
     isValid: false,
