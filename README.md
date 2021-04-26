@@ -4,6 +4,10 @@ A sample application to demo integration with SDK.
 
 ## Release notes
 
+### v1.1.0
+
+- Add User Id field to provide dynamic user id input. Initialization now contains appId and userId as well.
+
 ### v1.0.0
 
 - Add README
