@@ -4,6 +4,10 @@ A sample application to demo integration with SDK.
 
 ## Release notes
 
+### v1.1.1
+
+- Update .gitignore and sdk version
+
 ### v1.1.0
 
 - Add User Id field to provide dynamic user id input. Initialization now contains appId and userId as well.

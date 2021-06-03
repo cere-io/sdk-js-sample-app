@@ -17,7 +17,7 @@ import {
   Typography,
 } from "@material-ui/core";
 
-import { cereWebSDK } from "@cere/sdk-js";
+import { cereWebSDK } from "@cere/sdk-js/dist/web";
 
 type Payload = {
   [index: string]: string | number | undefined | Payload;
