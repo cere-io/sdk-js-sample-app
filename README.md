@@ -43,4 +43,4 @@ REACT_APP_API_KEY=api-key-12345
 
 ## Running the Sample application
 
-To start the Sample application, run `npm run start`. You can then open the frontend from the following URL: <http://localhost:3000/>
+To start the Sample application, run `npm install` and `npm run start`. You can then open the frontend from the following URL: <http://localhost:3000/>
