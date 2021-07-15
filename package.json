@@ -3,7 +3,7 @@
   "version": "1.1.1",
   "private": true,
   "dependencies": {
-    "@cere/sdk-js": "3.0.0-dev-rc6",
+    "@cere/sdk-js": "3.1.0-dev",
     "@material-ui/core": "^4.11.3",
     "ramda": "^0.27.1",
     "react": "^17.0.1",

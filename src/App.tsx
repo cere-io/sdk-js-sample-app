@@ -115,7 +115,7 @@ function TabPanel(props) {
 function App() {
   const classes = useStyles();
 
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(1);
   const [logs, setLogs] = useState<Array<LogMessage>>([]);
 
   const handleChange = (event, newValue) => {
@@ -154,7 +154,7 @@ function App() {
         token: process.env.REACT_APP_API_KEY,
       });
     }
-  }, [formState.appId, formState.userId, containerForInAppMessages.current]);
+  }, [formState.appId, formState.userId]);
 
   useEffect(() => {
     if (sdk) {
@@ -189,6 +189,7 @@ function App() {
   useEffect(() => {
     debouncedValidateForm(formState);
   }, [
+    formState,
     formState.appId,
     formState.userId,
     formState.eventName,
