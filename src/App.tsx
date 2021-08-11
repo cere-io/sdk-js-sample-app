@@ -115,7 +115,7 @@ function TabPanel(props) {
 function App() {
   const classes = useStyles();
 
-  const [value, setValue] = useState(1);
+  const [value, setValue] = useState(0);
   const [logs, setLogs] = useState<Array<LogMessage>>([]);
 
   const handleChange = (event, newValue) => {
