@@ -112,11 +112,14 @@ function TabPanel(props) {
   return <div hidden={value !== index}>{<Box p={3}>{children}</Box>}</div>;
 }
 
+let sdk;
+
 function App() {
   const classes = useStyles();
 
   const [value, setValue] = useState(0);
   const [logs, setLogs] = useState<Array<LogMessage>>([]);
+
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -145,16 +148,18 @@ function App() {
     ]);
   };
 
-  const sdk = useMemo(() => {
+
+
+  useEffect(() => {
     if (formState.appId && formState.userId) {
       logEvent("Init SDK", { appId: formState.appId, userId: formState.userId });
 
-      return cereWebSDK(formState.appId, formState.userId, {
+      sdk = cereWebSDK(formState.appId, formState.userId, {
         container: containerForInAppMessages.current,
         token: process.env.REACT_APP_API_KEY,
       });
     }
-  }, [formState.appId, formState.userId]);
+  }, []);
 
   useEffect(() => {
     if (sdk) {
