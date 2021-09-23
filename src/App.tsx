@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
+import {useEffect, useRef, useState} from "react";
+import {useDebouncedCallback} from "use-debounce";
 import Frame from "react-frame-component";
-import { pipe } from "ramda";
+import {pipe} from "ramda";
 
-import { makeStyles } from "@material-ui/core/styles";
+import {makeStyles} from "@material-ui/core/styles";
 import {
   AppBar,
   Box,
@@ -15,9 +15,13 @@ import {
   Tabs,
   TextField,
   Typography,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select, Divider,
 } from "@material-ui/core";
 
-import { cereWebSDK } from "@cere/sdk-js/dist/web";
+import {cereWebSDK} from "@cere/sdk-js/dist/web";
 
 type Payload = {
   [index: string]: string | number | undefined | Payload;
@@ -32,6 +36,10 @@ type LogMessage = {
 type FormState = {
   appId: string;
   userId: string;
+  authMethod: string;
+  email: string;
+  password: string;
+  accessToken: string;
   eventName: string;
   eventPayload: string;
   isValid: boolean;
@@ -96,6 +104,9 @@ const useStyles = makeStyles((theme) => ({
   submit: {
     margin: theme.spacing(0, 0, 5),
   },
+  authMethod: {
+    width: '100%',
+  },
 }));
 
 const DEBOUNCE_TIMEOUT = 500;
@@ -107,7 +118,7 @@ const stringify = (json: Payload) => JSON.stringify(json, null, 2);
 const parse = (value: string) => JSON.parse(value);
 
 function TabPanel(props) {
-  const { children, value, index } = props;
+  const {children, value, index} = props;
 
   return <div hidden={value !== index}>{<Box p={3}>{children}</Box>}</div>;
 }
@@ -125,10 +136,34 @@ function App() {
     setValue(newValue);
   };
 
+  const authMethods = [{
+    id: '',
+    label: 'None',
+  }, {
+    id: 'EMAIL',
+    label: 'Email',
+  }, {
+    id: 'OAUTH_FACEBOOK',
+    label: 'OAuth by Facebook',
+  }, {
+    id: 'OAUTH_GOOGLE',
+    label: 'OAuth by Google',
+  }, {
+    id: 'OAUTH_APPLE',
+    label: 'OAuth by Apple',
+  }, {
+    id: 'FIREBASE',
+    label: 'Firebase ID Token',
+  }];
+
   const [formState, setFormState] = useState({
     appId: process.env.REACT_APP_ID || "",
     userId: process.env.REACT_APP_USER_ID || "",
-    eventName: "",
+    authMethod: '',
+    email: '',
+    password: '',
+    eventName: '',
+    accessToken: '',
     eventPayload: stringify({}),
     isValid: false,
   });
@@ -149,28 +184,61 @@ function App() {
   };
 
 
-
   useEffect(() => {
-    if (formState.appId && formState.userId) {
-      logEvent("Init SDK", { appId: formState.appId, userId: formState.userId });
+    if (formState.appId && formState.userId && !formState.authMethod) {
+      logEvent("Init SDK", {appId: formState.appId, userId: formState.userId});
 
       sdk = cereWebSDK(formState.appId, formState.userId, {
-        container: containerForInAppMessages.current,
         token: process.env.REACT_APP_API_KEY,
+        container: containerForInAppMessages.current,
       });
     }
-  }, []);
+
+    if (formState.appId && formState.authMethod === 'EMAIL' && formState.email && formState.password) {
+      logEvent("Init SDK with email/password", {
+        appId: formState.appId,
+        email: formState.email,
+        password: formState.password
+      });
+
+      sdk = cereWebSDK(formState.appId, formState.userId, {
+        token: process.env.REACT_APP_API_KEY,
+        container: containerForInAppMessages.current,
+        authMethod: {
+          type: 'EMAIL',
+          email: formState.email,
+          password: formState.password,
+        }
+      });
+    }
+
+    if (formState.appId && ['OAUTH_APPLE', 'OAUTH_FACEBOOK', 'OAUTH_GOOGLE', 'FIREBASE'].includes(formState.authMethod) && formState.accessToken) {
+      logEvent("Init SDK with accessToken", {
+        appId: formState.appId,
+        accessToken: formState.accessToken,
+      });
+
+      sdk = cereWebSDK(formState.appId, formState.userId, {
+        token: process.env.REACT_APP_API_KEY,
+        container: containerForInAppMessages.current,
+        authMethod: {
+          type: formState.authMethod,
+          accessToken: formState.accessToken,
+        }
+      });
+    }
+  }, [formState.appId, formState.userId, formState.authMethod, formState.accessToken, formState.email, formState.password]);
 
   useEffect(() => {
     if (sdk) {
       sdk.onEngagement((template: string) => {
-        logEvent("Engagement", { template });
+        logEvent("Engagement", {template});
         setEngagementHtml(template);
       });
 
       logEvent("Registered custom engagement listener");
     }
-  }, [sdk]);
+  }, []);
 
   const debouncedValidateForm = useDebouncedCallback((formState: FormState) => {
     let eventPayload = formState.eventPayload;
@@ -197,6 +265,8 @@ function App() {
     formState,
     formState.appId,
     formState.userId,
+    formState.authMethod,
+    formState.accessToken,
     formState.eventName,
     formState.eventPayload,
     debouncedValidateForm,
@@ -217,6 +287,34 @@ function App() {
     });
   }, DEBOUNCE_TIMEOUT * 2);
 
+  const setAuthMethod = (event) => {
+    setFormState({
+      ...formState,
+      authMethod: event.target.value,
+    });
+  };
+
+  const setAccessToken = useDebouncedCallback((accessToken: string) => {
+    setFormState({
+      ...formState,
+      accessToken,
+    });
+  }, DEBOUNCE_TIMEOUT * 2);
+
+  const setEmail = useDebouncedCallback((email: string) => {
+    setFormState({
+      ...formState,
+      email,
+    });
+  }, DEBOUNCE_TIMEOUT * 2);
+
+  const setPassword = useDebouncedCallback((password: string) => {
+    setFormState({
+      ...formState,
+      password,
+    });
+  }, DEBOUNCE_TIMEOUT * 2);
+
   const setEventName = (e: React.ChangeEvent<HTMLInputElement>) => {
     const eventName = e.currentTarget.value;
     setFormState({
@@ -226,9 +324,8 @@ function App() {
   };
 
 
-
   const setEventPayload = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormState({ ...formState, eventPayload: e.currentTarget.value });
+    setFormState({...formState, eventPayload: e.currentTarget.value});
   };
 
   const onSendEvent = async (e: React.MouseEvent) => {
@@ -243,7 +340,7 @@ function App() {
   };
 
   const renderLogs = () => {
-    return logs.map(({ time, message, payload }, index) => (
+    return logs.map(({time, message, payload}, index) => (
       <Box
         className={classes.logItem}
         borderBottom={Number(index < logs.length - 1)}
@@ -265,9 +362,66 @@ function App() {
     ));
   };
 
+  const renderAuthMethodForm = () => {
+    if (['OAUTH_FACEBOOK', 'OAUTH_GOOGLE', 'OAUTH_APPLE', 'FIREBASE'].includes(formState.authMethod)) {
+      return (
+        <Grid item xs={12}>
+          <TextField
+            name="accessToken"
+            variant="outlined"
+            required
+            fullWidth
+            label="Access Token"
+            autoFocus
+            defaultValue={formState.accessToken}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setAccessToken(e.currentTarget.value)
+            }
+          />
+        </Grid>
+      );
+    }
+
+    if (formState.authMethod === 'EMAIL') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <TextField
+              name="email"
+              variant="outlined"
+              required
+              fullWidth
+              label="Email"
+              autoFocus
+              defaultValue={formState.email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setEmail(e.currentTarget.value)
+              }
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              name="password"
+              variant="outlined"
+              type="password"
+              required
+              fullWidth
+              label="Password"
+              autoFocus
+              defaultValue={formState.password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setPassword(e.currentTarget.value)
+              }
+            />
+          </Grid>
+        </>
+      );
+    }
+  };
+
   return (
     <Container component="main" maxWidth="lg">
-      <CssBaseline />
+      <CssBaseline/>
       <div className={classes.paper}>
         <form className={classes.form} noValidate>
           <Grid container spacing={6}>
@@ -298,6 +452,27 @@ function App() {
                       setUserId(e.currentTarget.value)
                     }
                   />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControl className={classes.authMethod}>
+                    <InputLabel id="simple-select-label">Auth Method</InputLabel>
+                    <Select
+                      labelId="simple-select-label"
+                      value={formState.authMethod}
+                      onChange={setAuthMethod}
+                    >
+                      {
+                        authMethods.map((authMethodItem) =>
+                          <MenuItem key={authMethodItem.id} value={authMethodItem.id}>{authMethodItem.label}</MenuItem>)
+                      }
+                    </Select>
+                  </FormControl>
+                </Grid>
+                {
+                  renderAuthMethodForm()
+                }
+                <Grid item xs={12}>
+                  <Divider/>
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
@@ -346,9 +521,9 @@ function App() {
                     onChange={handleChange}
                     aria-label="simple tabs example"
                   >
-                    <Tab label="Default" />
-                    <Tab label="Custom (iFrame)" />
-                    <Tab label="Custom" />
+                    <Tab label="Default"/>
+                    <Tab label="Custom (iFrame)"/>
+                    <Tab label="Custom"/>
                   </Tabs>
                 </AppBar>
                 <TabPanel value={value} index={0}>
@@ -376,7 +551,7 @@ function App() {
                     <Box className={classes.preview}>
                       <Frame className={classes.engagementPlaceholder}>
                         <div
-                          dangerouslySetInnerHTML={{ __html: engagementHtml }}
+                          dangerouslySetInnerHTML={{__html: engagementHtml}}
                         ></div>
                       </Frame>
                     </Box>
@@ -391,7 +566,7 @@ function App() {
                     </legend>
                     <Box className={classes.preview}>
                       <div
-                        dangerouslySetInnerHTML={{ __html: engagementHtml }}
+                        dangerouslySetInnerHTML={{__html: engagementHtml}}
                       ></div>
                     </Box>
                   </fieldset>
