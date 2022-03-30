@@ -1,9 +1,9 @@
-import {useEffect, useRef, useState} from "react";
-import {useDebouncedCallback} from "use-debounce";
-import Frame from "react-frame-component";
-import {pipe} from "ramda";
+import {useEffect, useRef, useState} from 'react';
+import {useDebouncedCallback} from 'use-debounce';
+import Frame from 'react-frame-component';
+import {pipe} from 'ramda';
 
-import {makeStyles} from "@material-ui/core/styles";
+import {makeStyles} from '@material-ui/core/styles';
 import {
   AppBar,
   Box,
@@ -18,10 +18,11 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Select, Divider,
-} from "@material-ui/core";
+  Select,
+  Divider,
+} from '@material-ui/core';
 
-import {cereWebSDK} from "@cere/sdk-js/dist/web";
+import {cereWebSDK} from '@cere/sdk-js/dist/web';
 
 type Payload = {
   [index: string]: string | number | undefined | Payload;
@@ -41,6 +42,8 @@ type FormState = {
   password: string;
   accessToken: string;
   eventName: string;
+  externalUserId: string;
+  externalToken: string;
   eventPayload: string;
   isValid: boolean;
 };
@@ -48,18 +51,18 @@ type FormState = {
 const useStyles = makeStyles((theme) => ({
   engagementPlaceholder: {
     border: 0,
-    width: "100%",
-    minHeight: "50vh",
+    width: '100%',
+    minHeight: '50vh',
   },
   engagementPreview: {
-    background: "white",
+    background: 'white',
   },
   fieldset: {
     border: 1,
     borderColor: theme.palette.divider,
     borderRadius: theme.shape.borderRadius,
-    borderStyle: "solid",
-    overflow: "auto",
+    borderStyle: 'solid',
+    overflow: 'auto',
     padding: theme.spacing(1, 2),
   },
   fieldsetLegend: {
@@ -67,14 +70,14 @@ const useStyles = makeStyles((theme) => ({
   },
   form: {
     marginTop: theme.spacing(3),
-    width: "100%",
+    width: '100%',
   },
   frame: {
     backgroundColor: theme.palette.background.default,
-    border: "none",
-    height: "100%",
-    position: "relative",
-    width: "100%",
+    border: 'none',
+    height: '100%',
+    position: 'relative',
+    width: '100%',
   },
   logItem: {
     borderColor: theme.palette.divider,
@@ -82,24 +85,24 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: theme.spacing(1),
   },
   logPayload: {
-    fontFamily: "monospace",
+    fontFamily: 'monospace',
     fontSize: theme.typography.fontSize * 0.8,
     fontWeight: theme.typography.fontWeightLight,
-    whiteSpace: "pre-wrap",
+    whiteSpace: 'pre-wrap',
   },
   logsWrapper: {
-    overflowX: "auto",
-    wordBreak: "break-all",
+    overflowX: 'auto',
+    wordBreak: 'break-all',
   },
   paper: {
-    alignItems: "center",
-    display: "flex",
-    flexDirection: "column",
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
     marginTop: theme.spacing(8),
   },
   preview: {
-    height: "50vh",
-    position: "relative",
+    height: '50vh',
+    position: 'relative',
   },
   submit: {
     margin: theme.spacing(0, 0, 5),
@@ -131,44 +134,56 @@ function App() {
   const [value, setValue] = useState(0);
   const [logs, setLogs] = useState<Array<LogMessage>>([]);
 
-
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
 
-  const authMethods = [{
-    id: '',
-    label: 'None',
-  }, {
-    id: 'EMAIL',
-    label: 'Email',
-  }, {
-    id: 'OAUTH_FACEBOOK',
-    label: 'OAuth by Facebook',
-  }, {
-    id: 'OAUTH_GOOGLE',
-    label: 'OAuth by Google',
-  }, {
-    id: 'OAUTH_APPLE',
-    label: 'OAuth by Apple',
-  }, {
-    id: 'FIREBASE',
-    label: 'Firebase ID Token',
-  }];
+  const authMethods = [
+    {
+      id: '',
+      label: 'None',
+    },
+    {
+      id: 'EMAIL',
+      label: 'Email',
+    },
+    {
+      id: 'OAUTH_FACEBOOK',
+      label: 'OAuth by Facebook',
+    },
+    {
+      id: 'OAUTH_GOOGLE',
+      label: 'OAuth by Google',
+    },
+    {
+      id: 'OAUTH_APPLE',
+      label: 'OAuth by Apple',
+    },
+    {
+      id: 'FIREBASE',
+      label: 'Firebase ID Token',
+    },
+    {
+      id: 'TRUSTED_3RD_PARTY',
+      label: 'Trusted 3rd party',
+    },
+  ];
 
   const [formState, setFormState] = useState({
-    appId: process.env.REACT_APP_ID || "",
-    userId: process.env.REACT_APP_USER_ID || "",
+    appId: process.env.REACT_APP_ID || '',
+    userId: process.env.REACT_APP_USER_ID || '',
     authMethod: '',
     email: '',
     password: '',
     eventName: '',
+    externalUserId: '',
+    externalToken: '',
     accessToken: '',
     eventPayload: stringify({}),
     isValid: false,
   });
 
-  const [engagementHtml, setEngagementHtml] = useState("");
+  const [engagementHtml, setEngagementHtml] = useState('');
 
   const containerForInAppMessages = useRef<HTMLDivElement>(null);
 
@@ -183,22 +198,26 @@ function App() {
     ]);
   };
 
-
   useEffect(() => {
+    console.log('1');
+
     if (formState.appId && formState.userId && !formState.authMethod) {
-      logEvent("Init SDK", {appId: formState.appId, userId: formState.userId});
+      logEvent('Init SDK', {appId: formState.appId, userId: formState.userId});
 
       sdk = cereWebSDK(formState.appId, formState.userId, {
         token: process.env.REACT_APP_API_KEY,
         container: containerForInAppMessages.current,
+        deployment: 'dev',
       });
     }
 
+    console.log('2');
+
     if (formState.appId && formState.authMethod === 'EMAIL' && formState.email && formState.password) {
-      logEvent("Init SDK with email/password", {
+      logEvent('Init SDK with email/password', {
         appId: formState.appId,
         email: formState.email,
-        password: formState.password
+        password: formState.password,
       });
 
       sdk = cereWebSDK(formState.appId, formState.userId, {
@@ -208,12 +227,19 @@ function App() {
           type: 'EMAIL',
           email: formState.email,
           password: formState.password,
-        }
+        },
+        deployment: 'dev',
       });
     }
 
-    if (formState.appId && ['OAUTH_APPLE', 'OAUTH_FACEBOOK', 'OAUTH_GOOGLE', 'FIREBASE'].includes(formState.authMethod) && formState.accessToken) {
-      logEvent("Init SDK with accessToken", {
+    console.log('3');
+
+    if (
+      formState.appId &&
+      ['OAUTH_APPLE', 'OAUTH_FACEBOOK', 'OAUTH_GOOGLE', 'FIREBASE'].includes(formState.authMethod) &&
+      formState.accessToken
+    ) {
+      logEvent('Init SDK with accessToken', {
         appId: formState.appId,
         accessToken: formState.accessToken,
       });
@@ -224,19 +250,55 @@ function App() {
         authMethod: {
           type: formState.authMethod,
           accessToken: formState.accessToken,
-        }
+        },
+        deployment: 'dev',
       });
     }
-  }, [formState.appId, formState.userId, formState.authMethod, formState.accessToken, formState.email, formState.password]);
+
+    console.log('4', formState.appId, formState.authMethod, formState.externalUserId, formState.externalToken);
+
+    if (
+      formState.appId &&
+      ['TRUSTED_3RD_PARTY'].includes(formState.authMethod) &&
+      formState.externalUserId &&
+      formState.externalToken
+    ) {
+      logEvent('Init SDK with params', {
+        appId: formState.appId,
+        externalUserId: formState.externalUserId,
+        externalToken: formState.externalToken,
+      });
+
+      sdk = cereWebSDK(formState.appId, formState.userId, {
+        token: process.env.REACT_APP_API_KEY,
+        container: containerForInAppMessages.current,
+        authMethod: {
+          type: formState.authMethod,
+          externalUserId: formState.externalUserId,
+          token: formState.externalToken,
+        },
+        deployment: 'dev',
+      });
+    }
+  }, [
+    formState.appId,
+    formState.userId,
+    formState.authMethod,
+    formState.accessToken,
+    formState.email,
+    formState.password,
+    formState.externalToken,
+    formState.externalUserId,
+  ]);
 
   useEffect(() => {
     if (sdk) {
       sdk.onEngagement((template: string) => {
-        logEvent("Engagement", {template});
+        logEvent('Engagement', {template});
         setEngagementHtml(template);
       });
 
-      logEvent("Registered custom engagement listener");
+      logEvent('Registered custom engagement listener');
     }
   }, []);
 
@@ -301,6 +363,20 @@ function App() {
     });
   }, DEBOUNCE_TIMEOUT * 2);
 
+  const setExternalUserId = useDebouncedCallback((externalUserId: string) => {
+    setFormState({
+      ...formState,
+      externalUserId,
+    });
+  }, DEBOUNCE_TIMEOUT * 2);
+
+  const setExternalToken = useDebouncedCallback((externalToken: string) => {
+    setFormState({
+      ...formState,
+      externalToken,
+    });
+  }, DEBOUNCE_TIMEOUT * 2);
+
   const setEmail = useDebouncedCallback((email: string) => {
     setFormState({
       ...formState,
@@ -323,29 +399,24 @@ function App() {
     });
   };
 
-
   const setEventPayload = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormState({...formState, eventPayload: e.currentTarget.value});
   };
 
   const onSendEvent = async (e: React.MouseEvent) => {
     e.preventDefault();
-    logEvent("Send event", {
+    logEvent('Send event', {
       eventName: formState.eventName,
       eventPayload: formState.eventPayload && parse(formState.eventPayload),
     });
-    setEngagementHtml("");
+    setEngagementHtml('');
 
     sdk.sendEvent(formState.eventName, parse(formState.eventPayload));
   };
 
   const renderLogs = () => {
     return logs.map(({time, message, payload}, index) => (
-      <Box
-        className={classes.logItem}
-        borderBottom={Number(index < logs.length - 1)}
-        key={index}
-      >
+      <Box className={classes.logItem} borderBottom={Number(index < logs.length - 1)} key={index}>
         <Box display="flex" width="100%">
           <Box fontWeight="bold" flexGrow={1}>
             {message}
@@ -374,11 +445,40 @@ function App() {
             label="Access Token"
             autoFocus
             defaultValue={formState.accessToken}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setAccessToken(e.currentTarget.value)
-            }
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAccessToken(e.currentTarget.value)}
           />
         </Grid>
+      );
+    }
+
+    if (['TRUSTED_3RD_PARTY'].includes(formState.authMethod)) {
+      return (
+        <>
+          <Grid item xs={12}>
+            <TextField
+              name="externalUserId"
+              variant="outlined"
+              required
+              fullWidth
+              label="External User IdD"
+              autoFocus
+              defaultValue={formState.externalUserId}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalUserId(e.currentTarget.value)}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              name="externalToken"
+              variant="outlined"
+              required
+              fullWidth
+              label="External Token"
+              autoFocus
+              defaultValue={formState.externalToken}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalToken(e.currentTarget.value)}
+            />
+          </Grid>
+        </>
       );
     }
 
@@ -394,9 +494,7 @@ function App() {
               label="Email"
               autoFocus
               defaultValue={formState.email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setEmail(e.currentTarget.value)
-              }
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.currentTarget.value)}
             />
           </Grid>
           <Grid item xs={12}>
@@ -409,9 +507,7 @@ function App() {
               label="Password"
               autoFocus
               defaultValue={formState.password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setPassword(e.currentTarget.value)
-              }
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.currentTarget.value)}
             />
           </Grid>
         </>
@@ -421,7 +517,7 @@ function App() {
 
   return (
     <Container component="main" maxWidth="lg">
-      <CssBaseline/>
+      <CssBaseline />
       <div className={classes.paper}>
         <form className={classes.form} noValidate>
           <Grid container spacing={6}>
@@ -448,31 +544,24 @@ function App() {
                     label="User Id"
                     autoFocus
                     defaultValue={formState.userId}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setUserId(e.currentTarget.value)
-                    }
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserId(e.currentTarget.value)}
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <FormControl className={classes.authMethod}>
                     <InputLabel id="simple-select-label">Auth Method</InputLabel>
-                    <Select
-                      labelId="simple-select-label"
-                      value={formState.authMethod}
-                      onChange={setAuthMethod}
-                    >
-                      {
-                        authMethods.map((authMethodItem) =>
-                          <MenuItem key={authMethodItem.id} value={authMethodItem.id}>{authMethodItem.label}</MenuItem>)
-                      }
+                    <Select labelId="simple-select-label" value={formState.authMethod} onChange={setAuthMethod}>
+                      {authMethods.map((authMethodItem) => (
+                        <MenuItem key={authMethodItem.id} value={authMethodItem.id}>
+                          {authMethodItem.label}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
-                {
-                  renderAuthMethodForm()
-                }
+                {renderAuthMethodForm()}
                 <Grid item xs={12}>
-                  <Divider/>
+                  <Divider />
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
@@ -516,58 +605,37 @@ function App() {
             <Grid container item xs={8}>
               <Grid item xs={12}>
                 <AppBar position="static">
-                  <Tabs
-                    value={value}
-                    onChange={handleChange}
-                    aria-label="simple tabs example"
-                  >
-                    <Tab label="Default"/>
-                    <Tab label="Custom (iFrame)"/>
-                    <Tab label="Custom"/>
+                  <Tabs value={value} onChange={handleChange} aria-label="simple tabs example">
+                    <Tab label="Default" />
+                    <Tab label="Custom (iFrame)" />
+                    <Tab label="Custom" />
                   </Tabs>
                 </AppBar>
                 <TabPanel value={value} index={0}>
-                  <fieldset
-                    className={`${classes.fieldset} ${classes.engagementPreview}`}
-                  >
-                    <legend className={classes.fieldsetLegend}>
-                      Default placeholder
-                    </legend>
+                  <fieldset className={`${classes.fieldset} ${classes.engagementPreview}`}>
+                    <legend className={classes.fieldsetLegend}>Default placeholder</legend>
                     <Box className={classes.preview}>
-                      <div
-                        className={classes.engagementPlaceholder}
-                        ref={containerForInAppMessages}
-                      ></div>
+                      <div className={classes.engagementPlaceholder} ref={containerForInAppMessages}></div>
                     </Box>
                   </fieldset>
                 </TabPanel>
                 <TabPanel value={value} index={1}>
-                  <fieldset
-                    className={`${classes.fieldset} ${classes.engagementPreview}`}
-                  >
+                  <fieldset className={`${classes.fieldset} ${classes.engagementPreview}`}>
                     <legend className={classes.fieldsetLegend}>
                       Custom placeholder <strong>in iFrame</strong>
                     </legend>
                     <Box className={classes.preview}>
                       <Frame className={classes.engagementPlaceholder}>
-                        <div
-                          dangerouslySetInnerHTML={{__html: engagementHtml}}
-                        ></div>
+                        <div dangerouslySetInnerHTML={{__html: engagementHtml}}></div>
                       </Frame>
                     </Box>
                   </fieldset>
                 </TabPanel>
                 <TabPanel value={value} index={2}>
-                  <fieldset
-                    className={`${classes.fieldset} ${classes.engagementPreview}`}
-                  >
-                    <legend className={classes.fieldsetLegend}>
-                      Custom placeholder
-                    </legend>
+                  <fieldset className={`${classes.fieldset} ${classes.engagementPreview}`}>
+                    <legend className={classes.fieldsetLegend}>Custom placeholder</legend>
                     <Box className={classes.preview}>
-                      <div
-                        dangerouslySetInnerHTML={{__html: engagementHtml}}
-                      ></div>
+                      <div dangerouslySetInnerHTML={{__html: engagementHtml}}></div>
                     </Box>
                   </fieldset>
                 </TabPanel>
