@@ -199,8 +199,6 @@ function App() {
   };
 
   useEffect(() => {
-    console.log('1');
-
     if (formState.appId && formState.userId && !formState.authMethod) {
       logEvent('Init SDK', {appId: formState.appId, userId: formState.userId});
 
@@ -209,9 +207,11 @@ function App() {
         container: containerForInAppMessages.current,
         deployment: 'dev',
       });
-    }
 
-    console.log('2');
+      setTimeout(async () => {
+        console.log('hasNfts', await sdk.hasNfts());
+      });
+    }
 
     if (formState.appId && formState.authMethod === 'EMAIL' && formState.email && formState.password) {
       logEvent('Init SDK with email/password', {
@@ -231,8 +231,6 @@ function App() {
         deployment: 'dev',
       });
     }
-
-    console.log('3');
 
     if (
       formState.appId &&
@@ -254,8 +252,6 @@ function App() {
         deployment: 'dev',
       });
     }
-
-    console.log('4', formState.appId, formState.authMethod, formState.externalUserId, formState.externalToken);
 
     if (
       formState.appId &&
